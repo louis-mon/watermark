@@ -24,6 +24,8 @@ object Main extends App {
       .filter(filter)
   }
 
+  val outDir = opt(conf.getString("outDir"))
+
   def processImage(path : String): Unit = {
     val inPath: File = new File(path)
     val input = Image.fromFile(inPath)
@@ -32,8 +34,11 @@ object Main extends App {
       List(d._1, d._2)
     }
     val patch = dims.map(_ * ratio).map(_.toInt)
-    val (mw, mh) = (patch(0), patch(1))
-    val outfile = new File(inPath.getPath.replaceAll("\\.[^.]*$", "-copy$0"))
+    val List(mw, mh) = patch
+    outDir.foreach(new File(_).mkdirs())
+    val outfile = outDir
+      .map(dir => new File(dir, inPath.getName))
+      .getOrElse(new File(inPath.getPath.replaceAll("\\.[^.]*$", "-copy$0")))
     val output = input.overlay(mark.fit(mw, mh), input.width - mw, input.height - mh)
     output.output(outfile)
   }
