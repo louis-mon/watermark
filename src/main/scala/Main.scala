@@ -14,6 +14,7 @@ object Main extends App {
     }
   }
   val ratio = opt(conf.getDouble("ratio")).getOrElse(0.1)
+  val alpha = opt(conf.getDouble("alpha")).getOrElse(0.4)
 
   def toList(c: RGBColor): List[Long] = List(c.red, c.green, c.blue, c.alpha)
 
@@ -31,7 +32,7 @@ object Main extends App {
     }
     val text = conf.getString("text")
     val h = 50
-    val filter = new WatermarkFilter(text, 0, h * 2, color, size = 50, antiAlias = false, alpha = 0.5)
+    val filter = new WatermarkFilter(text, 0, h * 2, color, size = 50, antiAlias = false, alpha = alpha)
     val background = Color.White.copy(alpha = 1)
     Image.filled(h * 4, h * 4, background)
       .filter(filter)
