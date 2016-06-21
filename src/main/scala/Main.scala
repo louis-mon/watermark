@@ -1,9 +1,7 @@
-import java.awt.Font
 import java.io.File
-import java.nio.file.{Files, Paths}
 
-import com.sksamuel.scrimage.{Color, Image}
 import com.sksamuel.scrimage.canvas.WatermarkFilter
+import com.sksamuel.scrimage.{Color, Image, Position}
 import com.typesafe.config.{ConfigException, ConfigFactory}
 
 object Main extends App {
@@ -19,9 +17,12 @@ object Main extends App {
   val mark = {
     val text = conf.getString("text")
     val h = 50
-    val filter = new WatermarkFilter(text, 0, h, Color.White, size = h, antiAlias = true, alpha = 0.4)
-    Image.filled(h * text.length, h, Color.Transparent)
+    val filter = new WatermarkFilter(text, 0, h * 2, Color.Black, size = 50, antiAlias = false, alpha = 0.4)
+    val background = Color.White.copy(alpha = 1)
+    Image.filled(h * 4, h * 4, background)
       .filter(filter)
+      .autocrop(background)
+      .pad(10)
   }
 
   val outDir = opt(conf.getString("outDir"))
@@ -39,7 +40,8 @@ object Main extends App {
     val outfile = outDir
       .map(dir => new File(dir, inPath.getName))
       .getOrElse(new File(inPath.getPath.replaceAll("\\.[^.]*$", "-copy$0")))
-    val output = input.overlay(mark.fit(mw, mh), input.width - mw, input.height - mh)
+    val markFit = mark.fit(mw, mh, position = Position.BottomRight)
+    val output = input.overlay(markFit, input.width - markFit.width, input.height - markFit.height)
     output.output(outfile)
   }
 
