@@ -1,7 +1,7 @@
 import java.io.File
 
 import com.sksamuel.scrimage.canvas.WatermarkFilter
-import com.sksamuel.scrimage.{Color, Image, Position}
+import com.sksamuel.scrimage.{Color, Image, Position, RGBColor}
 import com.typesafe.config.{ConfigException, ConfigFactory}
 
 object Main extends App {
@@ -14,15 +14,30 @@ object Main extends App {
     }
   }
   val ratio = opt(conf.getDouble("ratio")).getOrElse(0.1)
-  val mark = {
+
+  def toList(c: RGBColor): List[Long] = List(c.red, c.green, c.blue, c.alpha)
+
+  def toColor(l: List[Long]) = l.map(_.toInt) match {
+    case List(r, g, b, a) => RGBColor(r, g, b, a)
+  }
+
+  def mark(patch: Image) = {
+    val color = {
+      val mean = patch.iterator.foldLeft(List.fill(4)(0L))((acc, c) =>
+        acc.zip(toList(c.toColor)).map { case (a, b) => a + b })
+        .map(_ / patch.count)
+      val hsv = toColor(mean).toHSV
+      hsv.copy(hue = (hsv.hue + 180) % 360, value = 1 - hsv.value)
+    }
     val text = conf.getString("text")
     val h = 50
-    val filter = new WatermarkFilter(text, 0, h * 2, Color.Black, size = 50, antiAlias = false, alpha = 0.4)
+    val filter = new WatermarkFilter(text, 0, h * 2, color, size = 50, antiAlias = false, alpha = 0.5)
     val background = Color.White.copy(alpha = 1)
     Image.filled(h * 4, h * 4, background)
       .filter(filter)
       .autocrop(background)
       .pad(10)
+      .fit(patch.width, patch.height, position = Position.BottomRight)
   }
 
   val outDir = opt(conf.getString("outDir"))
@@ -30,17 +45,12 @@ object Main extends App {
   def processImage(path : String): Unit = {
     val inPath: File = new File(path)
     val input = Image.fromFile(inPath)
-    val dims = {
-      val d = input.dimensions
-      List(d._1, d._2)
-    }
-    val patch = dims.map(_ * ratio).map(_.toInt)
-    val List(mw, mh) = patch
+    val patch = input.resize(ratio, Position.BottomRight)
     outDir.foreach(new File(_).mkdirs())
     val outfile = outDir
       .map(dir => new File(dir, inPath.getName))
       .getOrElse(new File(inPath.getPath.replaceAll("\\.[^.]*$", "-copy$0")))
-    val markFit = mark.fit(mw, mh, position = Position.BottomRight)
+    val markFit = mark(patch)
     val output = input.overlay(markFit, input.width - markFit.width, input.height - markFit.height)
     output.output(outfile)
   }
